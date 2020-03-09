@@ -13,14 +13,21 @@
 
 #define LOG_ERR(c, m) (std::clog << "[ERR:" << (c) << "] " << m << std::endl)
 
+typedef Matrix<SCREEN_W, SCREEN_H> Mat;
+
 void update_simulation();
+void render_simulation();
 void update_ui();
 void render_ui();
 
 //!
 //!
 
-GLuint g_Program = 0;
+GLuint g_Program;
+GLuint g_Texture[2];
+GLuint g_F;
+
+Mat g_Simulation[2];
 
 //!
 //!
@@ -47,6 +54,37 @@ void createProgram()
 
 	glDeleteShader(l_FShader);
 	glDeleteShader(l_VShader);
+}
+
+void createTexture()
+{
+	glGenTextures(2, g_Texture);
+
+	glBindTexture(GL_TEXTURE_2D, g_Texture[0]);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	//!
+	//! INITIALIZE STORAGE [0]
+	//!
+
+	//glTexImage2D(GL_TEXTURE_2D, 1, GL_RG32F, SCREEN_W, SCREEN_H, 0, GL_RG, GL_FLOAT, NULL);
+
+	glBindTexture(GL_TEXTURE_2D, g_Texture[1]);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	//!
+	//! INITIALIZE STORAGE [1]
+	//!
+
+	//glTexImage2D(GL_TEXTURE_2D, 1, GL_RG32F, SCREEN_W, SCREEN_H, 0, GL_RG, GL_FLOAT, NULL);
 }
 
 float g_color[4];
@@ -126,6 +164,7 @@ int main()
 	ImGui_ImplOpenGL3_Init();
 
 	createProgram();
+	createTexture();
 
 	//!
 	//! MAIN LOOP
@@ -136,14 +175,20 @@ int main()
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 
-		update_simulation();
+		//!update_simulation();
+		render_simulation();
 		render_ui();
 		update_ui();
+
+		g_F += 1;
+		g_F %= 2;
 
 		glfwSwapInterval(1);
 		glfwSwapBuffers(l_Window);
 		glfwPollEvents();
 	}
+
+	glDeleteProgram(g_Program);
 
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
@@ -157,7 +202,73 @@ int main()
 //!
 //!
 
+inline glm::vec2 laplacian(const Mat & m, int i, int j)
+{
+	//!
+	//! WRAP COORDINATES
+	//!
+
+	int t = (i - 1) < 0 ? SCREEN_H - 1 : i - 1;
+	int l = (j - 1) < 0 ? SCREEN_W - 1 : j - 1;
+	int b = (i + 1) >= SCREEN_H ? 0 : i + 1;
+	int r = (j + 1) >= SCREEN_W ? 0 : j + 1;
+
+	//!
+	//!
+
+	glm::vec2 m00 = m(t, l);
+	glm::vec2 m01 = m(t, j);
+	glm::vec2 m02 = m(t, r);
+	glm::vec2 m10 = m(i, l);
+	glm::vec2 m11 = m(i, j);
+	glm::vec2 m12 = m(i, r);
+	glm::vec2 m20 = m(b, l);
+	glm::vec2 m21 = m(b, j);
+	glm::vec2 m22 = m(b, r);
+
+	//!
+	//!
+
+	glm::vec2 dia = (m00 + m02 + m20 + m22) * (.05f);
+	glm::vec2 adj = (m01 + m10 + m12 + m21) * (.20f);
+
+	//!
+	//!
+
+	return  dia + adj - m11;
+}
+
 void update_simulation()
+{
+	GLuint l_N = (g_F + 1) % 2;
+
+	float D_t = 1.0f;
+	float D_a = 1.0f;
+	float D_b = 0.5f;
+	float f = 0.055f;
+	float k = 0.062f;
+
+	for (int i = 0; i < SCREEN_H; i++)
+	for (int j = 0; j < SCREEN_W; j++)
+	{
+		const glm::vec2 lap = laplacian(g_Simulation[g_F], i, j);
+
+		float A = g_Simulation[g_F](i, j).x;
+		float B = g_Simulation[g_F](i, j).y;
+		float C = A + ((D_a * lap.x - A * B * B) + f * (1 - A)) * D_t;
+		float D = B + ((D_b * lap.y - A * B * B) - B * (k + f)) * D_t;
+
+		//!
+		//!
+
+		g_Simulation[l_N](i, j) = glm::vec2(C, D);
+	}
+
+	glBindTexture(GL_TEXTURE_2D, g_Texture[g_F]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, SCREEN_W, SCREEN_H, 0, GL_RG, GL_FLOAT, g_Simulation[l_N].matrix.get());
+}
+
+void render_simulation()
 {
 	glUseProgram(g_Program);
 		update_color();
