@@ -4,55 +4,67 @@
 #include "imgui_impl_opengl3.h"
 
 #include <iostream>
+#include <algorithm>
 
 //!
 //!
 
-#define SCREEN_W (800)
-#define SCREEN_H (800)
 
 #define LOG_ERR(c, m) (std::clog << "[ERR:" << (c) << "] " << m << std::endl)
-
-typedef Matrix<SCREEN_W, SCREEN_H> Mat;
 
 void update_simulation();
 void render_simulation();
 void update_ui();
 void render_ui();
 
-//!
-//!
-
-GLuint g_Program;
-GLuint g_Texture[2];
-GLuint g_F;
-
-Mat g_Simulation[2];
+#define FRAME_SKIP 10
 
 //!
 //!
 
 void createProgram()
 {
-	g_Program = glCreateProgram();
+	g_Program[0] = glCreateProgram();
+	g_Program[1] = glCreateProgram();
 
 	GLuint l_VShader = glCreateShader(GL_VERTEX_SHADER);
-	GLuint l_FShader = glCreateShader(GL_FRAGMENT_SHADER);
+	GLuint l_FShaderRender = glCreateShader(GL_FRAGMENT_SHADER);
+	GLuint l_FShaderKernel = glCreateShader(GL_FRAGMENT_SHADER);
 
 	//!
+	//! RENDER PROGRAM
 	//!
 
 	glShaderSource(l_VShader, 1, &g_vert, NULL);
-	glShaderSource(l_FShader, 1, &g_frag, NULL);
 		glCompileShader(l_VShader);
-		glCompileShader(l_FShader);
-			glAttachShader(g_Program, l_VShader);
-			glAttachShader(g_Program, l_FShader);
-				glLinkProgram(g_Program);
-			glDetachShader(g_Program, l_VShader);
-			glDetachShader(g_Program, l_FShader);
 
-	glDeleteShader(l_FShader);
+	glShaderSource(l_FShaderRender, 1, &g_frag_render, NULL);
+	glShaderSource(l_FShaderKernel, 1, &g_frag_kernel, NULL);
+		glCompileShader(l_FShaderRender);
+		glCompileShader(l_FShaderKernel);
+
+	glAttachShader(g_Program[0], l_VShader);
+	glAttachShader(g_Program[0], l_FShaderRender);
+		glLinkProgram(g_Program[0]);
+	glDetachShader(g_Program[0], l_FShaderRender);
+	glDetachShader(g_Program[0], l_VShader);
+
+	//!
+	//! KERNEL PROGRAM
+	//!
+
+	glAttachShader(g_Program[1], l_VShader);
+	glAttachShader(g_Program[1], l_FShaderKernel);
+		glLinkProgram(g_Program[1]);
+	glDetachShader(g_Program[1], l_FShaderKernel);
+	glDetachShader(g_Program[1], l_VShader);
+
+	//!
+	//! CLEANUP
+	//!
+
+	glDeleteShader(l_FShaderKernel);
+	glDeleteShader(l_FShaderRender);
 	glDeleteShader(l_VShader);
 }
 
@@ -63,48 +75,35 @@ void createTexture()
 	glBindTexture(GL_TEXTURE_2D, g_Texture[0]);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_REPEAT);
 
-	//!
-	//! INITIALIZE STORAGE [0]
-	//!
-
-	//glTexImage2D(GL_TEXTURE_2D, 1, GL_RG32F, SCREEN_W, SCREEN_H, 0, GL_RG, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, SCREEN_W, SCREEN_H, 0, GL_RG, GL_FLOAT, NULL);
 
 	glBindTexture(GL_TEXTURE_2D, g_Texture[1]);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_REPEAT);
 
-	//!
-	//! INITIALIZE STORAGE [1]
-	//!
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, SCREEN_W, SCREEN_H, 0, GL_RG, GL_FLOAT, NULL);
 
-	//glTexImage2D(GL_TEXTURE_2D, 1, GL_RG32F, SCREEN_W, SCREEN_H, 0, GL_RG, GL_FLOAT, NULL);
+	glGenFramebuffers(1, &g_FBO);
+
+
 }
 
-float g_color[4];
-
-void update_color()
+void clear_texture()
 {
-	static GLint l_color = 0;
-
-	//!
-	//!
-
-	if (l_color == 0)
-	{
-		l_color = glGetUniformLocation(g_Program, "u_color");
-	}
-
-	//!
-	//!
-
-	glUniform4fv(l_color, 1, g_color);
+	glBindFramebuffer(GL_FRAMEBUFFER, g_FBO);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_Texture[0], 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, g_Texture[1], 0);		
+			glClearColor(1.f, 0.f, 0.f, 0.f);
+				glClear(GL_COLOR_BUFFER_BIT);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, 0, 0);
 }
 
 int main()
@@ -129,12 +128,12 @@ int main()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
-	GLFWwindow * l_Window = glfwCreateWindow(SCREEN_W, SCREEN_H, "Morph", NULL, NULL);
+	g_Window = glfwCreateWindow(SCREEN_W, SCREEN_H, "Morph", NULL, NULL);
 
 	//!
 	//!
 
-	if (!l_Window)
+	if (!g_Window)
 	{
 		//!
 		//! ERROR WINDOW
@@ -143,7 +142,20 @@ int main()
 		return (glfwTerminate(), -1);
 	}
 
-	glfwMakeContextCurrent(l_Window);
+	//!
+	//! RESIZE CALLBACK
+	//!
+
+	glfwSetWindowSizeCallback(g_Window, [](GLFWwindow*, int w, int h)
+		{
+			g_screen[0] = float(w);
+			g_screen[1] = float(h);
+		});
+
+	//!
+	//!
+
+	glfwMakeContextCurrent(g_Window);
 
 	//!
 	//! INIT GLAD
@@ -155,40 +167,58 @@ int main()
 		//! ERROR LOADER
 		//!
 
-		return (glfwDestroyWindow(l_Window), glfwTerminate(), -1);
+		return (glfwDestroyWindow(g_Window), glfwTerminate(), -1);
 	}
 
 	ImGui::CreateContext();
 
-	ImGui_ImplGlfw_InitForOpenGL(l_Window, true);
+	ImGui_ImplGlfw_InitForOpenGL(g_Window, true);
 	ImGui_ImplOpenGL3_Init();
 
 	createProgram();
 	createTexture();
 
 	//!
-	//! MAIN LOOP
 	//!
 
-	while (!glfwWindowShouldClose(l_Window))
+	while (!glfwWindowShouldClose(g_Window))
 	{
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 
-		//!update_simulation();
-		render_simulation();
-		render_ui();
-		update_ui();
+		double l_T = glfwGetTime();
 
-		g_F += 1;
-		g_F %= 2;
+		for (int i = 0; i < FRAME_SKIP; i++)
+		{
+			update_simulation();
+			render_simulation();
+
+			if ((glfwGetTime() - l_T) > (1.f / 60.f))
+			{
+				break;
+			}
+
+			//!
+			//! SWAP TARGETS
+			//!
+
+			std::swap(g_Texture[0], g_Texture[1]);
+		}
+
+		update_ui();
+		render_ui();
+
+		glFlush();
 
 		glfwSwapInterval(1);
-		glfwSwapBuffers(l_Window);
+		glfwSwapBuffers(g_Window);
 		glfwPollEvents();
 	}
 
-	glDeleteProgram(g_Program);
+	glDeleteFramebuffers(1, &g_FBO);
+	glDeleteTextures(2, g_Texture);
+	glDeleteProgram(g_Program[1]);
+	glDeleteProgram(g_Program[0]);
 
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
@@ -196,92 +226,74 @@ int main()
 	//!
 	//!
 
-	return (ImGui::DestroyContext(), glfwDestroyWindow(l_Window), glfwTerminate(), 0);
+	return (ImGui::DestroyContext(), glfwDestroyWindow(g_Window), glfwTerminate(), 0);
 }
 
 //!
 //!
-
-inline glm::vec2 laplacian(const Mat & m, int i, int j)
-{
-	//!
-	//! WRAP COORDINATES
-	//!
-
-	int t = (i - 1) < 0 ? SCREEN_H - 1 : i - 1;
-	int l = (j - 1) < 0 ? SCREEN_W - 1 : j - 1;
-	int b = (i + 1) >= SCREEN_H ? 0 : i + 1;
-	int r = (j + 1) >= SCREEN_W ? 0 : j + 1;
-
-	//!
-	//!
-
-	glm::vec2 m00 = m(t, l);
-	glm::vec2 m01 = m(t, j);
-	glm::vec2 m02 = m(t, r);
-	glm::vec2 m10 = m(i, l);
-	glm::vec2 m11 = m(i, j);
-	glm::vec2 m12 = m(i, r);
-	glm::vec2 m20 = m(b, l);
-	glm::vec2 m21 = m(b, j);
-	glm::vec2 m22 = m(b, r);
-
-	//!
-	//!
-
-	glm::vec2 dia = (m00 + m02 + m20 + m22) * (.05f);
-	glm::vec2 adj = (m01 + m10 + m12 + m21) * (.20f);
-
-	//!
-	//!
-
-	return  dia + adj - m11;
-}
 
 void update_simulation()
 {
-	GLuint l_N = (g_F + 1) % 2;
-
-	float D_t = 1.0f;
-	float D_a = 1.0f;
-	float D_b = 0.5f;
-	float f = 0.055f;
-	float k = 0.062f;
-
-	for (int i = 0; i < SCREEN_H; i++)
-	for (int j = 0; j < SCREEN_W; j++)
+	double x = -1;
+	double y = -1;
+	
+	if (glfwGetMouseButton(g_Window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
 	{
-		const glm::vec2 lap = laplacian(g_Simulation[g_F], i, j);
-
-		float A = g_Simulation[g_F](i, j).x;
-		float B = g_Simulation[g_F](i, j).y;
-		float C = A + ((D_a * lap.x - A * B * B) + f * (1 - A)) * D_t;
-		float D = B + ((D_b * lap.y - A * B * B) - B * (k + f)) * D_t;
-
 		//!
 		//!
 
-		g_Simulation[l_N](i, j) = glm::vec2(C, D);
+		glfwGetCursorPos(g_Window, &x, &y);
 	}
 
-	glBindTexture(GL_TEXTURE_2D, g_Texture[g_F]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, SCREEN_W, SCREEN_H, 0, GL_RG, GL_FLOAT, g_Simulation[l_N].matrix.get());
-}
+	g_pencil[0] = 0.f + x / g_screen[0];
+	g_pencil[1] = 1.f - y / g_screen[1];
 
-void render_simulation()
-{
-	glUseProgram(g_Program);
-		update_color();
+	if (std::exchange(g_Clear, false))
+	{
+		clear_texture();
+	}
+
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, g_FBO);
+		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_Texture[1], 0);
+
+	glUseProgram(g_Program[1]);
+		glUniform1f(u_Dt(), g_Dt); //! Dt
+		glUniform1f(u_Da(), g_Da); //! Da
+		glUniform1f(u_Db(), g_Db); //! Db
+		glUniform1f(u_f(), g_Feed); //! f
+		glUniform1f(u_k(), g_Kill); //! k
+		glUniform2fv(u_pencil(), 1, g_pencil); //! pencil
+		glUniform2fv(u_screen(), 1, g_screen); //! screen
+
+	glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, g_Texture[0]);
 
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-void update_ui()
+void render_simulation()
+{
+	glUseProgram(g_Program[0]);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, g_Texture[1]);
+
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+void render_ui()
 {	
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void render_ui()
+static const char * g_items[] =
+{
+	"Coral", "Solitons", "Pulsating solitons", "Worms"
+};
+
+void update_ui()
 {
 	ImGui::NewFrame();
 
@@ -290,9 +302,21 @@ void render_ui()
 
 	ImGui::SetNextWindowPos(ImVec2(0, 0));
 
-	ImGui::Begin("Parametri", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
-		ImGui::ColorPicker4("Background", g_color);
+	ImGui::Begin("Parametri", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);		
+		if (ImGui::Combo("Presets", &g_preset, g_items, 4))
+		{
+			g_Feed = g_presets[g_preset][0];
+			g_Kill = g_presets[g_preset][1];
+		}
+
+		ImGui::SliderFloat("feed rate", &g_Feed, 0, .1f);
+		ImGui::SliderFloat("kill rate", &g_Kill, 0, .1f);
 	ImGui::End();
+
+	ImGui::Begin("Stat");
+		ImGui::Text("Time: %.2f ms", ImGui::GetIO().DeltaTime * 1000.f);
+	ImGui::End();
+
 
 	//!
 	//!
