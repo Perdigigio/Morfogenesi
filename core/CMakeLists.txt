@@ -9,7 +9,6 @@ add_library(imgui STATIC
 	${CMAKE_SOURCE_DIR}/ext/imgui/imgui_widgets.cpp)
 
 target_link_libraries(Morfogenesi.Main glfw)
-target_link_libraries(Morfogenesi.Main glm)
 target_link_libraries(Morfogenesi.Main glad)
 target_link_libraries(Morfogenesi.Main imgui)
 

@@ -152,8 +152,8 @@ int main()
 
 	glfwSetWindowSizeCallback(g_Window, [](GLFWwindow*, int w, int h)
 		{
-			g_screen[0] = float(w);
-			g_screen[1] = float(h);
+			g_screen[0] = w;
+			g_screen[1] = h;
 		});
 
 	glfwSetCharCallback(g_Window, [](GLFWwindow*, unsigned int c)
@@ -372,11 +372,30 @@ void update_ui()
 		ImGui::SliderFloat("kill rate", &g_Kill, 0, .1f);
 	ImGui::End();
 
+
+	ImGui::SetNextWindowPos(ImGui::GetIO().DisplaySize, 0, ImVec2(1, 1));
+
+#ifdef _DEBUG
+	ImGui::Begin("Stat", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_AlwaysAutoResize);
+
+		ImGui::TextColored(ImVec4(0, 1, 0, 1), "%.2f  ms", ImGui::GetIO().DeltaTime * 1000.f);
+		ImGui::TextColored(ImVec4(0, 1, 0, 1), "%.2f FPS", 1.f / ImGui::GetIO().DeltaTime);
+	ImGui::End();
+#endif
+
 	ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x, 0), 0, ImVec2(1, 0));
 
-	ImGui::Begin("Stat", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground);
-		ImGui::TextColored(ImVec4(0, 1, 0, 1), "Time: %.2f ms", ImGui::GetIO().DeltaTime * 1000.f);
+	ImGui::Begin("Legend", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_AlwaysAutoResize);
+		ImGui::TextColored(ImVec4(0, 1, 0, 1), "[F] toggle fullscreen");
+		ImGui::TextColored(ImVec4(0, 1, 0, 1), "[P] toggle pause");
 	ImGui::End();
+
+	//!
+	//! CLAMP DATA
+	//!
+
+	g_Feed = std::max(std::min(g_Feed, 0.1f), 0.f);
+	g_Kill = std::max(std::min(g_Kill, 0.1f), 0.f);
 
 	//!
 	//!
