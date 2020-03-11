@@ -12,12 +12,15 @@
 
 #define LOG_ERR(c, m) (std::clog << "[ERR:" << (c) << "] " << m << std::endl)
 
+void toggle_fulscreen();
 void update_simulation();
 void render_simulation();
 void update_ui();
 void render_ui();
 
-#define FRAME_SKIP 10
+#define FRAME_SKIP (10)
+#define FRAME_TIME (1.f / 60.f)
+
 
 //!
 //!
@@ -79,7 +82,7 @@ void createTexture()
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_REPEAT);
 
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, SCREEN_W, SCREEN_H, 0, GL_RG, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, g_canvas[0], g_canvas[1], 0, GL_RG, GL_FLOAT, NULL);
 
 	glBindTexture(GL_TEXTURE_2D, g_Texture[1]);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
@@ -88,7 +91,7 @@ void createTexture()
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_REPEAT);
 
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, SCREEN_W, SCREEN_H, 0, GL_RG, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, g_canvas[0], g_canvas[1], 0, GL_RG, GL_FLOAT, NULL);
 
 	glGenFramebuffers(1, &g_FBO);
 
@@ -105,6 +108,7 @@ void clear_texture()
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, 0, 0);
 }
+
 
 int main()
 {
@@ -152,6 +156,12 @@ int main()
 			g_screen[1] = float(h);
 		});
 
+	glfwSetCharCallback(g_Window, [](GLFWwindow*, unsigned int c)
+		{
+			if (c == 'f') toggle_fulscreen();
+			if (c == 'F') toggle_fulscreen();
+		});
+
 	//!
 	//!
 
@@ -193,7 +203,7 @@ int main()
 			update_simulation();
 			render_simulation();
 
-			if ((glfwGetTime() - l_T) > (1.f / 60.f))
+			if ((glfwGetTime() - l_T) > FRAME_TIME)
 			{
 				break;
 			}
@@ -207,8 +217,6 @@ int main()
 
 		update_ui();
 		render_ui();
-
-		glFlush();
 
 		glfwSwapInterval(1);
 		glfwSwapBuffers(g_Window);
@@ -232,6 +240,44 @@ int main()
 //!
 //!
 
+void toggle_fulscreen()
+{
+	const GLFWvidmode * l_Mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+
+	//!
+	//!
+
+	if (g_Frame)
+	{
+		glfwSetWindowAttrib(g_Window, GLFW_DECORATED, GLFW_FALSE);
+		glfwSetWindowAttrib(g_Window, GLFW_RESIZABLE, GLFW_FALSE);
+
+		//!
+		//!
+
+		glfwSetWindowSize(g_Window, l_Mode->width, l_Mode->height);
+		glfwSetWindowPos(g_Window, 0, 0);
+
+	}
+	else
+	{
+		glfwSetWindowAttrib(g_Window, GLFW_DECORATED, GLFW_TRUE);
+		glfwSetWindowAttrib(g_Window, GLFW_RESIZABLE, GLFW_TRUE);
+
+		//!
+		//!
+
+		glfwSetWindowSize(g_Window, SCREEN_W, SCREEN_H);
+		glfwSetWindowPos(g_Window, 50, 50);
+
+	}
+
+	//!
+	//!
+
+	g_Frame = !g_Frame;
+}
+
 void update_simulation()
 {
 	double x = -1;
@@ -245,13 +291,15 @@ void update_simulation()
 		glfwGetCursorPos(g_Window, &x, &y);
 	}
 
-	g_pencil[0] = 0.f + x / g_screen[0];
-	g_pencil[1] = 1.f - y / g_screen[1];
+	g_pencil[0] = (int)(x);
+	g_pencil[1] = (int)(y);
 
 	if (std::exchange(g_Clear, false))
 	{
 		clear_texture();
 	}
+
+	glViewport(0, 0, SCREEN_W, SCREEN_H);
 
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, g_FBO);
 		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_Texture[1], 0);
@@ -262,8 +310,9 @@ void update_simulation()
 		glUniform1f(u_Db(), g_Db); //! Db
 		glUniform1f(u_f(), g_Feed); //! f
 		glUniform1f(u_k(), g_Kill); //! k
-		glUniform2fv(u_pencil(), 1, g_pencil); //! pencil
-		glUniform2fv(u_screen(), 1, g_screen); //! screen
+		glUniform2iv(u_pencil(), 1, g_pencil); //! pencil
+		glUniform2iv(u_canvas(), 1, g_canvas); //! canvas
+		glUniform2iv(u_screen(), 1, g_screen); //! screen
 
 	glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, g_Texture[0]);
@@ -274,6 +323,8 @@ void update_simulation()
 void render_simulation()
 {
 	glUseProgram(g_Program[0]);
+
+	glViewport(0, 0, g_screen[0], g_screen[1]);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -302,21 +353,30 @@ void update_ui()
 
 	ImGui::SetNextWindowPos(ImVec2(0, 0));
 
-	ImGui::Begin("Parametri", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);		
+	ImGui::Begin("Parametri", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
+
+		if (ImGui::Button("Reset"))
+		{
+			g_Clear = true;
+		}
+
 		if (ImGui::Combo("Presets", &g_preset, g_items, 4))
 		{
 			g_Feed = g_presets[g_preset][0];
 			g_Kill = g_presets[g_preset][1];
 		}
 
+		ImGui::SliderFloat("Da", &g_Da, 0, 1.f);
+		ImGui::SliderFloat("Db", &g_Db, 0, 1.f);
 		ImGui::SliderFloat("feed rate", &g_Feed, 0, .1f);
 		ImGui::SliderFloat("kill rate", &g_Kill, 0, .1f);
 	ImGui::End();
 
-	ImGui::Begin("Stat");
-		ImGui::Text("Time: %.2f ms", ImGui::GetIO().DeltaTime * 1000.f);
-	ImGui::End();
+	ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x, 0), 0, ImVec2(1, 0));
 
+	ImGui::Begin("Stat", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground);
+		ImGui::TextColored(ImVec4(0, 1, 0, 1), "Time: %.2f ms", ImGui::GetIO().DeltaTime * 1000.f);
+	ImGui::End();
 
 	//!
 	//!

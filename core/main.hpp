@@ -28,13 +28,21 @@ static const GLchar * g_frag_render =
 	LINE("")
 	LINE("uniform sampler2D t_data;")
 	LINE("")
+	LINE("vec4 g_c = vec4(0, 1, 1, 1);")
+	LINE("vec4 g_m = vec4(1, 0, 1, 1);")
+	LINE("vec4 g_y = vec4(1, 1, 0, 1);")
+	LINE("vec4 g_k = vec4(0, 0, 0, 1);")
+	LINE("")
 	LINE("in vec2 f_uv;")
 	LINE("")
 	LINE("void main()")
 	LINE("{")
-	LINE("	vec2 ab = texture(t_data, f_uv).xy;")
+	LINE("	vec2 v = texture(t_data, f_uv).xy;")
 	LINE("")
-	LINE("	gl_FragColor = vec4(ab.x - ab.y);")
+	LINE("	vec4 r = mix(g_c, g_k, 0 + v.x);")
+	LINE("	vec4 g = mix(g_m, g_k, 1 - v.y);")
+	LINE("")
+	LINE("	gl_FragColor = mix(r, g, v.x - v.y);")
 	LINE("}");
 
 static const GLchar * g_frag_kernel =
@@ -48,8 +56,9 @@ static const GLchar * g_frag_kernel =
 	LINE("uniform float u_f;")
 	LINE("uniform float u_k;")
 	LINE("")
-	LINE("uniform vec2 u_screen;")
-	LINE("uniform vec2 u_pencil;")
+	LINE("uniform ivec2 u_screen;")
+	LINE("uniform ivec2 u_canvas;")
+	LINE("uniform ivec2 u_pencil;")
 	LINE("")
 	LINE("in vec2 f_uv;")
 	LINE("")
@@ -57,10 +66,14 @@ static const GLchar * g_frag_kernel =
 	LINE("{")
 	LINE("	return dot(v, v);")
 	LINE("}")
+	LINE("vec2 getBrush()")
+	LINE("{")
+	LINE("	return vec2(u_pencil.x, u_screen.y - u_pencil.y) - f_uv * u_screen;")
+	LINE("}")
 	LINE("")
 	LINE("void main()")
 	LINE("{")
-	LINE("	vec2 step = 1.f / u_screen;")
+	LINE("	vec2 step = 1.f / u_canvas;")
 	LINE("")
 	LINE("	vec4 t = texture2D(t_seed, f_uv + vec2(0, +step.y));")
 	LINE("	vec4 b = texture2D(t_seed, f_uv + vec2(0, -step.y));")
@@ -75,7 +88,7 @@ static const GLchar * g_frag_kernel =
 	LINE("")
 	LINE("	if (u_pencil.x > 0.f)")
 	LINE("	{ ")
-	LINE("		if (sqrLength((u_pencil - f_uv) * u_screen) < 5.f) B = .9;")
+	LINE("		if (sqrLength(getBrush()) < 10.f) B = .9;")
 	LINE("	} ")
 	LINE("")
 	LINE("	gl_FragColor.r = A; ")
@@ -113,9 +126,9 @@ float g_Db = 0.5f;
 float g_Feed = g_presets[0][0];
 float g_Kill = g_presets[0][1];
 
-float g_pencil[2];
-float g_screen[2] = { SCREEN_W, SCREEN_H };
-
+int g_pencil[2];
+int g_screen[2] = { SCREEN_W, SCREEN_H };
+int g_canvas[2] = { SCREEN_W, SCREEN_H };
 
 int g_preset = 0;
 
@@ -201,6 +214,19 @@ static inline GLint u_pencil()
 	if (i == -1)
 	{
 		i = glGetUniformLocation(g_Program[1], "u_pencil");
+	}
+
+	return i;
+}
+
+
+static inline GLint u_canvas()
+{
+	static GLint i = -1;
+
+	if (i == -1)
+	{
+		i = glGetUniformLocation(g_Program[1], "u_canvas");
 	}
 
 	return i;
