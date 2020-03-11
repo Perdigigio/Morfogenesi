@@ -3,14 +3,14 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
-#include <iostream>
 #include <algorithm>
+#include <cstdio>
 
 //!
 //!
 
 
-#define LOG_ERR(c, m) (std::clog << "[ERR:" << (c) << "] " << m << std::endl)
+#define LOG_ERR(c, m) std::fprintf(stderr, "[ERR: %x] %s \n", (c), (m))
 
 void toggle_fulscreen();
 void update_simulation();
@@ -18,8 +18,8 @@ void render_simulation();
 void update_ui();
 void render_ui();
 
-#define FRAME_SKIP (10)
-#define FRAME_TIME (1.f / 60.f)
+#define FRAME_SKIP (30)
+#define FRAME_TIME (1.f / 62.f)
 
 
 //!
@@ -160,6 +160,10 @@ int main()
 		{
 			if (c == 'f') toggle_fulscreen();
 			if (c == 'F') toggle_fulscreen();
+			if (c == 'p') g_Pause = !g_Pause;
+			if (c == 'P') g_Pause = !g_Pause;
+			if (c == 'v') g_Vsync = !g_Vsync;
+			if (c == 'V') g_Vsync = !g_Vsync;
 		});
 
 	//!
@@ -196,29 +200,16 @@ int main()
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 
-		double l_T = glfwGetTime();
-
-		for (int i = 0; i < FRAME_SKIP; i++)
+		if (!g_Pause)
 		{
 			update_simulation();
-			render_simulation();
-
-			if ((glfwGetTime() - l_T) > FRAME_TIME)
-			{
-				break;
-			}
-
-			//!
-			//! SWAP TARGETS
-			//!
-
-			std::swap(g_Texture[0], g_Texture[1]);
 		}
 
+		render_simulation();
 		update_ui();
 		render_ui();
 
-		glfwSwapInterval(1);
+		glfwSwapInterval(g_Vsync ? 1 : 0);
 		glfwSwapBuffers(g_Window);
 		glfwPollEvents();
 	}
@@ -280,6 +271,8 @@ void toggle_fulscreen()
 
 void update_simulation()
 {
+	Timer l_Timer;
+
 	double x = -1;
 	double y = -1;
 	
@@ -301,9 +294,6 @@ void update_simulation()
 
 	glViewport(0, 0, SCREEN_W, SCREEN_H);
 
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, g_FBO);
-		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_Texture[1], 0);
-
 	glUseProgram(g_Program[1]);
 		glUniform1f(u_Dt(), g_Dt); //! Dt
 		glUniform1f(u_Da(), g_Da); //! Da
@@ -314,10 +304,28 @@ void update_simulation()
 		glUniform2iv(u_canvas(), 1, g_canvas); //! canvas
 		glUniform2iv(u_screen(), 1, g_screen); //! screen
 
-	glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, g_Texture[0]);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, g_FBO);
 
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	for (int i = 0; i < FRAME_SKIP; i++)
+	{
+		if (l_Timer.elapsed() > FRAME_TIME)
+		{
+			break;
+		}
+
+		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_Texture[1], 0);
+			
+		glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, g_Texture[0]);
+
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+		//!
+		//! SWAP TARGETS
+		//!
+
+		std::swap(g_Texture[0], g_Texture[1]);
+	}
 }
 
 void render_simulation()
@@ -387,7 +395,8 @@ void update_ui()
 
 	ImGui::Begin("Legend", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_AlwaysAutoResize);
 		ImGui::TextColored(ImVec4(0, 1, 0, 1), "[F] toggle fullscreen");
-		ImGui::TextColored(ImVec4(0, 1, 0, 1), "[P] toggle pause");
+		ImGui::TextColored(ImVec4(0, 1, 0, 1), "[P] toggle pause: %s", g_Pause ? "off" : "on");
+		ImGui::TextColored(ImVec4(0, 1, 0, 1), "[V] toggle vsync: %s", g_Vsync ? "off" : "on");
 	ImGui::End();
 
 	//!
