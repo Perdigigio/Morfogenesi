@@ -15,12 +15,15 @@ before_script:
 
 script:
   - cmake --build .
+  
+before_deploy:
+  - echo $PWD
 
 deploy:
   provider: releases
   token: $KEY
   file_glob: true
   file:
-    - "build/*"
+    - "*"
   on:
     branch: master
