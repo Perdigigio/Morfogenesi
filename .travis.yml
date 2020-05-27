@@ -15,8 +15,6 @@ before_script:
 
 script:
   - cmake --build .
-  
-after_script:
   - ls -lh
   - echo $PWD
   - echo $TRAVIS_BUILD_DIR
