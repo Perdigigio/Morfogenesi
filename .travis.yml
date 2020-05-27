@@ -15,3 +15,10 @@ before_script:
 
 script:
   - cmake --build .
+
+deploy:
+  provider: releases
+  api_key: "${KEY}"
+  file: "bin/Morfogenesi.Main"
+  skip_cleanup: true
+  draft: true
