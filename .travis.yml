@@ -17,7 +17,8 @@ script:
   - cmake --build .
   
 before_deploy:
-  - echo $PWD
+  - cd $TRAVIS_BUILD_DIR
+  - ls -lh
 
 deploy:
   provider: releases
