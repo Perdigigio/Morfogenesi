@@ -16,9 +16,10 @@ before_script:
 script:
   - cmake --build .
   
-before_deploy:
-  - cd $TRAVIS_BUILD_DIR
+after_script:
   - ls -lh
+  - echo $PWD
+  - echo $TRAVIS_BUILD_DIR
 
 deploy:
   provider: releases
