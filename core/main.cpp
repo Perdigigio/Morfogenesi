@@ -287,9 +287,9 @@ void update_simulation()
 	g_pencil[0] = (int)(x);
 	g_pencil[1] = (int)(y);
 
-	if (std::exchange(g_Clear, false))
+	if (g_Clear)
 	{
-		clear_texture();
+		 g_Clear = (clear_texture(), false);
 	}
 
 	glViewport(0, 0, SCREEN_W, SCREEN_H);
