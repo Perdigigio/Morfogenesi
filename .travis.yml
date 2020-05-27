@@ -19,7 +19,8 @@ script:
 deploy:
   provider: releases
   token: $KEY
-  local_dir: bin
-  cleanup: false
+  file:
+    - "build/bin/Morfogenesi.Main"
+  skip_cleanup: true
   on:
     branch: master
