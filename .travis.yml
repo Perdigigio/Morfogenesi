@@ -19,8 +19,8 @@ script:
 deploy:
   provider: releases
   token: $KEY
+  file_glob: true
   file:
-    - "build/bin/Morfogenesi.Main"
-  skip_cleanup: true
+    - "build/*"
   on:
     branch: master
