@@ -1,6 +1,6 @@
 language: cpp
 
-matrix:
+jobs:
   include:
     os: osx
     osx_image: xcode10
@@ -18,7 +18,8 @@ script:
 
 deploy:
   provider: releases
-  api_key: "${KEY}"
-  file: "bin/Morfogenesi.Main"
-  skip_cleanup: true
-  draft: true
+  token: $KEY
+  local_dir: bin
+  cleanup: false
+  on:
+    branch: master
