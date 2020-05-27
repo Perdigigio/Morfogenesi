@@ -3,7 +3,7 @@ language: cpp
 compiler:
   - gcc
 
-install:
+before_install:
   - apt-get install libxrandr-dev
 
 before_script:
