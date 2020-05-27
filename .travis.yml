@@ -1,10 +1,12 @@
 language: cpp
 
+matrix:
+  include:
+    os: osx
+    osx_image: xcode10
+    
 compiler:
-  - gcc
-
-before_install:
-  - sudo apt-get -y install xorg-dev
+  - clang++
 
 before_script:
   - mkdir build
