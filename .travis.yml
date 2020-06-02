@@ -16,6 +16,7 @@ script:
   - cd ..
 
 deploy:
+  skip_cleanup: true
   provider: releases
   token: $KEY
   file:
