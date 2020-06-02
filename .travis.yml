@@ -15,10 +15,10 @@ script:
   - ls -lha
 
 before_deploy:
-  - mkdir build
-  - cd build
-  - cmake .. && cmake --build .
+  - echo $PWD
+  - ls -lha
   - tar czf Morfogenesi.tar.gz .
+  
 deploy:
   provider: releases
   token: $KEY
