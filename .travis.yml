@@ -9,16 +9,15 @@ compiler:
   - clang++
 
 before_script:
+
+
+before_deploy:
   - mkdir build
   - cd build
   - cmake ..
-
-script:
   - cmake --build .
-  - ls -lh
-  - echo $PWD
-  - echo $TRAVIS_BUILD_DIR
-
+  - ls -lha
+  - tar czf Morfogenesi.tar.gz .
 deploy:
   provider: releases
   token: $KEY
