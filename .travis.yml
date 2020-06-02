@@ -12,18 +12,13 @@ script:
   - mkdir build
   - cd build
   - cmake .. && cmake --build .
-  - ls -lha
+  - tar czf Morfogenesi.tar.gz core
+  - cd ..
 
-before_deploy:
-  - echo $PWD
-  - ls -lha
-  - tar czf Morfogenesi.tar.gz .
-  
 deploy:
   provider: releases
   token: $KEY
-  file_glob: true
   file:
-    - "*"
+    - "./build/Morfogenesi.tar.gz"
   on:
     branch: master
