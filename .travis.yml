@@ -8,9 +8,6 @@ jobs:
 compiler:
   - clang++
 
-before_script:
-
-
 before_deploy:
   - mkdir build
   - cd build
