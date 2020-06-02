@@ -8,12 +8,16 @@ jobs:
 compiler:
   - clang++
 
+script:
+  - mkdir build
+  - cd build
+  - cmake .. && cmake --build .
+  - ls -lha
+
 before_deploy:
   - mkdir build
   - cd build
-  - cmake ..
-  - cmake --build .
-  - ls -lha
+  - cmake .. && cmake --build .
   - tar czf Morfogenesi.tar.gz .
 deploy:
   provider: releases
