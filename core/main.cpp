@@ -21,7 +21,6 @@ void render_ui();
 #define FRAME_SKIP (30)
 #define FRAME_TIME (1.f / 62.f)
 
-
 //!
 //!
 
@@ -94,8 +93,7 @@ void createTexture()
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, g_canvas[0], g_canvas[1], 0, GL_RG, GL_FLOAT, NULL);
 
 	glGenFramebuffers(1, &g_FBO);
-
-
+	glGenVertexArrays(1, &g_VAO);
 }
 
 void clear_texture()
@@ -131,6 +129,7 @@ int main()
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 
 	g_Window = glfwCreateWindow(SCREEN_W, SCREEN_H, "Morph", NULL, NULL);
 
@@ -197,6 +196,8 @@ int main()
 
 	while (!glfwWindowShouldClose(g_Window))
 	{
+		glBindVertexArray(g_VAO);
+
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 
@@ -214,6 +215,7 @@ int main()
 		glfwPollEvents();
 	}
 
+	glDeleteVertexArrays(1, &g_VAO);
 	glDeleteFramebuffers(1, &g_FBO);
 	glDeleteTextures(2, g_Texture);
 	glDeleteProgram(g_Program[1]);

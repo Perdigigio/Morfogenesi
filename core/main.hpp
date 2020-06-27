@@ -195,6 +195,7 @@ GLFWwindow * g_Window;
 GLuint g_Program[2];
 GLuint g_Texture[2];
 GLuint g_FBO;
+GLuint g_VAO;
 
 float g_presets[][2] =
 {
