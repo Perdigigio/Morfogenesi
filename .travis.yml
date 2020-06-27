@@ -12,9 +12,16 @@ script:
   - mkdir build
   - cd build
   - cmake .. && cmake --build .
-  - tar czf Morfogenesi.tar.gz core
+  - tar czf Morfogenesi.tar.gz core/Morfogenesi.Main
   - cd ..
-
+  
+before_deploy:
+  # Set up git user name and tag this commit
+  - git config --local user.name "Francesco Straffi"
+  - git config --local user.email "fr.straffi@gmail.com"
+  - export TRAVIS_TAG=${TRAVIS_TAG:-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)}
+  - git tag $TRAVIS_TAG
+  
 deploy:
   skip_cleanup: true
   provider: releases
