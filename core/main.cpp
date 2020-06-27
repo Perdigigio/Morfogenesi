@@ -130,7 +130,7 @@ int main()
 	}
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 
 	g_Window = glfwCreateWindow(SCREEN_W, SCREEN_H, "Morph", NULL, NULL);
 
