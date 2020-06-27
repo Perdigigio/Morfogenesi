@@ -11,7 +11,7 @@
 //!
 
 /***************************************************************************************
-#version 130
+#version 330
 
 uniform sampler2D t_seed;
 
@@ -67,7 +67,7 @@ void main()
 //!
 
 static const GLchar * g_vert =
-	LINE("#version 130")
+	LINE("#version 330")
 	LINE("")
 	LINE("out vec2 f_uv;")
 	LINE("")
@@ -84,7 +84,7 @@ static const GLchar * g_vert =
 	LINE("}");
 
 static const GLchar * g_frag_render =
-	LINE("#version 130")
+	LINE("#version 330")
 	LINE("")
 	LINE("uniform sampler2D t_data;")
 	LINE("")
@@ -106,7 +106,7 @@ static const GLchar * g_frag_render =
 	LINE("}");
 
 static const GLchar * g_frag_kernel =
-	LINE("#version 130")
+	LINE("#version 330")
 	LINE("")
 	LINE("uniform sampler2D t_seed;")
 	LINE("")

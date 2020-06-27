@@ -187,7 +187,7 @@ int main()
 	ImGui::CreateContext();
 
 	ImGui_ImplGlfw_InitForOpenGL(g_Window, true);
-	ImGui_ImplOpenGL3_Init();
+	ImGui_ImplOpenGL3_Init("#version 330");
 
 	createProgram();
 	createTexture();
