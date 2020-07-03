@@ -21,7 +21,6 @@ void render_ui();
 #define FRAME_SKIP (30)
 #define FRAME_TIME (1.f / 62.f)
 
-
 //!
 //!
 
