@@ -1,3 +1,5 @@
+add_definitions(-DIMGUI_IMPL_OPENGL_LOADER_GLAD)
+
 add_executable(Morfogenesi.Main
 	main.cpp
 	imgui_impl_glfw.cpp

@@ -27,6 +27,8 @@ void render_ui();
 
 void createProgram()
 {
+	glGenVertexArrays(1, &g_VAO);
+
 	g_Program[0] = glCreateProgram();
 	g_Program[1] = glCreateProgram();
 
@@ -82,7 +84,7 @@ void createTexture()
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_REPEAT);
 
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, g_canvas[0], g_canvas[1], 0, GL_RG, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16, g_canvas[0], g_canvas[1], 0, GL_RG, GL_FLOAT, NULL);
 
 	glBindTexture(GL_TEXTURE_2D, g_Texture[1]);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
@@ -91,11 +93,9 @@ void createTexture()
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_REPEAT);
 
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, g_canvas[0], g_canvas[1], 0, GL_RG, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16, g_canvas[0], g_canvas[1], 0, GL_RG, GL_FLOAT, NULL);
 
 	glGenFramebuffers(1, &g_FBO);
-
-
 }
 
 void clear_texture()
@@ -131,6 +131,7 @@ int main()
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 
 	g_Window = glfwCreateWindow(SCREEN_W, SCREEN_H, "Morph", NULL, NULL);
 
@@ -184,6 +185,19 @@ int main()
 		return (glfwDestroyWindow(g_Window), glfwTerminate(), -1);
 	}
 
+	glEnable(GL_DEBUG_OUTPUT_KHR);
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_KHR);
+
+	glDebugMessageCallbackKHR([](GLenum source,GLenum type,GLuint id,GLenum severity,GLsizei length,const GLchar *message,const void *userParam)
+	{
+		if (severity == GL_DEBUG_SEVERITY_HIGH_KHR ||
+			severity == GL_DEBUG_SEVERITY_MEDIUM_KHR ||
+			severity == GL_DEBUG_SEVERITY_LOW_KHR)
+		{
+			LOG_ERR(id, message);
+		}
+	}, NULL);
+
 	ImGui::CreateContext();
 
 	ImGui_ImplGlfw_InitForOpenGL(g_Window, true);
@@ -197,6 +211,8 @@ int main()
 
 	while (!glfwWindowShouldClose(g_Window))
 	{
+		glBindVertexArray(g_VAO);
+
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 
@@ -214,6 +230,7 @@ int main()
 		glfwPollEvents();
 	}
 
+	glDeleteVertexArrays(1, &g_VAO);
 	glDeleteFramebuffers(1, &g_FBO);
 	glDeleteTextures(2, g_Texture);
 	glDeleteProgram(g_Program[1]);

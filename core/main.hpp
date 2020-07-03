@@ -141,7 +141,7 @@ static const GLchar * g_frag_kernel =
 	LINE("	vec4 r = texture2D(t_seed, f_uv + vec2(+step.x, 0));")
 	LINE("	vec4 c = texture2D(t_seed, f_uv);")
 	LINE("")
-	LINE("	vec4 lap = ((t + b + l + r) - 4 * c) / 5;")
+	LINE("	vec4 lap = ((t + b + l + r) - 4 * c) / 9;")
 	LINE("")
 	LINE("	float A = c.x + ((u_Da * lap.x - c.x * c.y * c.y) + u_f * (1.0 - c.x)) * u_Dt;")
 	LINE("	float B = c.y + ((u_Db * lap.y + c.x * c.y * c.y) - c.y * (u_k + u_f)) * u_Dt;")
@@ -195,6 +195,7 @@ GLFWwindow * g_Window;
 GLuint g_Program[2];
 GLuint g_Texture[2];
 GLuint g_FBO;
+GLuint g_VAO;
 
 float g_presets[][2] =
 {
